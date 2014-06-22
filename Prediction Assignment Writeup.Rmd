@@ -1,0 +1,70 @@
+Prediction Assignment Writeup
+========================================================
+
+In this assignment I will load the data, remove columns from train data with a large number of NA's and the use randomForest to build a predictive model which I will apply on the test data provided. 
+
+First, I load the training and test datasets making sure the NA will be strings and not factors:
+
+```{r}
+download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "pml-training.csv")
+download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+destfile = "pml-testing.csv")
+
+pmlTrain <- read.csv("pml-training.csv",na.strings=c("", "NA", "NULL"))
+pmlTest <- read.csv("pml-testing.csv",na.strings=c("", "NA", "NULL"))
+
+```
+
+I check if how many NA values exist in the training set and since they seem to be a large number I create a temporay dataframe with a sub-selection of train data removing columns which have a high number of NA's.
+
+Then I also remove first 6 columns which are of no use for the model and can only make randomForest overfitting the train data. The new dataframe pmlTrain_reduced will be used in building the model.
+
+```{r}
+sum(is.na(pmlTrain))
+tmp <- pmlTrain 
+tmp <- tmp[, which(as.numeric(colSums(is.na(tmp))) < 15000)] 
+pmlTrain_reduced<-subset(tmp,select=-c(1,2,3,4,5,6))
+```
+
+========================================================
+It's time to build the model. I will use random forests since it will allow easily building a model without splitting the train data in train and test sets: random forest will do it at each iteration it will perform. I set a seed since randomForest is stochastic.
+
+The model will predict our classe based on reduced train data and the model will grow a number of 1000 trees. I picked the number to be rather large since there are still many variabiles 54. The other randomForest parameters are left to defaults.
+
+As I use randomForest, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error since randomForest does this internally. source: http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr
+
+```{r}
+set.seed(10)
+library(randomForest)
+rf=randomForest(classe~.,data=pmlTrain_reduced,ntree=1000)
+
+```
+
+We check how good the model is. The OOB estimate, proportion of times the result is not accurate averaged over all samples it's pretty small and in the confusion matrix the number of class errors are small.
+
+```{r}
+rf
+```
+
+I also check if the number of trees was a good choice.
+```{r}
+plot(rf,log="y")
+```
+It seems I could have choosen a smaller number like 800.
+
+Next I use the randomForest model on the test data provided to predict in which manner they did the exercise. 
+
+```{r}
+
+predict=predict(rf, pmlTest)
+predict
+```
+
+And we prepare writing the answers in the files as requested for submission:
+```{r}
+i=1;
+for (row in predict) {
+    print(paste('answers = rep("',row[1],'",',i,")",sep=""));
+    i<-i+1
+}
+```
